@@ -1,0 +1,12 @@
+{
+    "random_state": 42,
+    "shot_levels": [
+        1,
+        2,
+        5,
+        10
+    ],
+    "n_trials": 100,
+    "device": "cuda",
+    "model_checkpoint": "C:\\Users\\DELL\\Downloads\\stunt-reproduction\\stunt-reproduction\\best_model.pt"
+}

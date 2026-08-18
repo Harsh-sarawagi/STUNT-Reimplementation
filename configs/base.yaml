@@ -1,0 +1,18 @@
+seed: 42
+
+data:
+  dataset: adult
+  test_size: 0.2
+
+task:
+  n_way: 2
+  k_shot: 5
+  q_query: 10
+
+model:
+  hidden_dim: 64
+  embedding_dim: 32
+
+training:
+  epochs: 100
+  learning_rate: 0.001
