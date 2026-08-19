@@ -1,0 +1,13 @@
+WDBC initial experiment
+
+STUNT:
+Accuracy: 0.9474
+Precision: 0.9500
+Recall: 0.9048
+F1: 0.9268
+
+Raw Logistic Regression:
+Accuracy: 0.9649
+Precision: 0.9750
+Recall: 0.9286
+F1: 0.9512

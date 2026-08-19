@@ -28,3 +28,32 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+
+# =========================================================
+# Project-specific
+# =========================================================
+
+# Raw datasets
+data/raw/
+data/income/
+
+# Trained model checkpoints
+*.pt
+*.pth
+*.ckpt
+
+# Experiment outputs
+experiments/
+results/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python build/package files
+*.egg-info/
+build/
+dist/

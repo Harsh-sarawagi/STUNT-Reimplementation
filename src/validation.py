@@ -122,13 +122,13 @@ def make_validation_episode(
 
 def pseudo_validate(
     model,
-    X_val: np.ndarray,
-    n_way: int,
-    k_shot: int,
-    q_query: int,
-    device: str = "cpu",
-    random_state: int = 42,
-    n_episodes: int = 20,
+    X_val,
+    n_way,
+    k_shot,
+    q_query,
+    device,
+    n_episodes=20,
+    random_state=42,
 ):
     """
     Evaluate a STUNT model using multiple
@@ -218,111 +218,153 @@ def real_validate(
     model,
     X_val,
     y_val,
-    n_way,
-    k_shot,
-    q_query,
-    device="cpu",
+    n_way=2,
+    k_shot=2,
+    q_query=30,
     n_episodes=20,
+    device="cpu",
     random_state=42,
 ):
-    rng = np.random.default_rng(random_state)
+
+    rng = np.random.default_rng(
+        random_state
+    )
 
     model.eval()
+
+    X_val = np.asarray(
+        X_val,
+        dtype=np.float32
+    )
+
+    y_val = np.asarray(
+        y_val,
+        dtype=np.int64
+    )
+
+    # -----------------------------------------------------
+    # Get available classes
+    # -----------------------------------------------------
+
+    available_classes = np.unique(
+        y_val
+    )
+
+    if len(available_classes) < n_way:
+        raise ValueError(
+            "Validation set has fewer classes "
+            "than n_way."
+        )
+
     accuracies = []
+    f1_scores = []
 
-    X_val = np.asarray(X_val)
-    y_val = np.asarray(y_val)
+    # -----------------------------------------------------
+    # Episodes
+    # -----------------------------------------------------
 
-    classes = np.unique(y_val)
+    for episode in range(
+        n_episodes
+    ):
 
-    if len(classes) < n_way:
-        raise ValueError("Validation set has fewer classes than n_way.")
+        # Select classes for this episode
+        selected_classes = rng.choice(
+            available_classes,
+            size=n_way,
+            replace=False,
+        )
 
-    with torch.no_grad():
+        support_indices = []
+        query_indices = []
 
-        for episode in range(n_episodes):
+        # -------------------------------------------------
+        # Sample support/query
+        # -------------------------------------------------
 
-            selected_classes = rng.choice(
-                classes,
-                size=n_way,
+        for cls in selected_classes:
+
+            indices = np.flatnonzero(
+                y_val == cls
+            )
+
+            required = (
+                k_shot + q_query
+            )
+
+            if len(indices) < required:
+                raise ValueError(
+                    f"Class {cls} has only "
+                    f"{len(indices)} samples, "
+                    f"but {required} are required."
+                )
+
+            selected = rng.choice(
+                indices,
+                size=required,
                 replace=False,
             )
 
-            support_indices = []
-            query_indices = []
-
-            for cls in selected_classes:
-
-                class_indices = np.flatnonzero(
-                    y_val == cls
-                )
-
-                required = k_shot + q_query
-
-                if len(class_indices) < required:
-                    raise ValueError(
-                        f"Class {cls} has only "
-                        f"{len(class_indices)} samples."
-                    )
-
-                selected = rng.choice(
-                    class_indices,
-                    size=required,
-                    replace=False,
-                )
-
-                support_indices.extend(
-                    selected[:k_shot]
-                )
-
-                query_indices.extend(
-                    selected[k_shot:]
-                )
-
-            support_indices = np.asarray(
-                support_indices,
-                dtype=np.int64,
+            support_indices.extend(
+                selected[:k_shot]
             )
 
-            query_indices = np.asarray(
-                query_indices,
-                dtype=np.int64,
+            query_indices.extend(
+                selected[k_shot:]
             )
 
-            support_x = torch.tensor(
-                X_val[support_indices],
-                dtype=torch.float32,
-                device=device,
+        # -------------------------------------------------
+        # Build tensors
+        # -------------------------------------------------
+
+        support_x = torch.tensor(
+            X_val[support_indices],
+            dtype=torch.float32,
+            device=device,
+        )
+
+        query_x = torch.tensor(
+            X_val[query_indices],
+            dtype=torch.float32,
+            device=device,
+        )
+
+        # -------------------------------------------------
+        # Convert real labels to episodic labels
+        # -------------------------------------------------
+
+        class_to_episode = {
+            cls: i
+            for i, cls in enumerate(
+                selected_classes
             )
+        }
 
-            query_x = torch.tensor(
-                X_val[query_indices],
-                dtype=torch.float32,
-                device=device,
-            )
+        support_y = torch.tensor(
+            [
+                class_to_episode[
+                    y_val[idx]
+                ]
+                for idx in support_indices
+            ],
+            dtype=torch.long,
+            device=device,
+        )
 
-            # Convert the selected real classes to 0...n_way-1
-            support_y = np.concatenate([
-                np.full(k_shot, i)
-                for i in range(n_way)
-            ])
+        query_y = np.asarray(
+            [
+                class_to_episode[
+                    y_val[idx]
+                ]
+                for idx in query_indices
+            ],
+            dtype=np.int64,
+        )
 
-            query_y = np.concatenate([
-                np.full(q_query, i)
-                for i in range(n_way)
-            ])
+        # -------------------------------------------------
+        # Prediction
+        # -------------------------------------------------
 
-            support_y = torch.tensor(
-                support_y,
-                dtype=torch.long,
-                device=device,
-            )
-
-            query_y = torch.tensor(
-                query_y,
-                dtype=torch.long,
-                device=device,
-            )
+        with torch.no_grad():
 
             predictions = model.predict(
                 support_x,
@@ -330,12 +372,54 @@ def real_validate(
                 query_x,
             )
 
-            accuracy = (
-                predictions == query_y
-            ).float().mean().item()
+        predictions = (
+            predictions
+            .detach()
+            .cpu()
+            .numpy()
+        )
 
-            accuracies.append(accuracy)
+        # -------------------------------------------------
+        # Metrics
+        # -------------------------------------------------
+
+        from sklearn.metrics import (
+            accuracy_score,
+            f1_score,
+        )
+
+        accuracy = accuracy_score(
+            query_y,
+            predictions,
+        )
+
+        f1 = f1_score(
+            query_y,
+            predictions,
+            average="macro",
+        )
+
+        accuracies.append(
+            accuracy
+        )
+
+        f1_scores.append(
+            f1
+        )
 
     model.train()
 
-    return float(np.mean(accuracies))
+    return {
+        "accuracy": float(
+            np.mean(accuracies)
+        ),
+        "accuracy_std": float(
+            np.std(accuracies)
+        ),
+        "f1": float(
+            np.mean(f1_scores)
+        ),
+        "f1_std": float(
+            np.std(f1_scores)
+        ),
+    }

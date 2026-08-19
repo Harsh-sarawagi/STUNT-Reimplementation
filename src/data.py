@@ -128,3 +128,54 @@ def load_wdbc(
         y_test,
         scaler,
     )
+
+def load_income():
+    """
+    Load preprocessed Adult/Census Income data.
+
+    STUNT training uses train_x only.
+    Labels are retained for validation and final evaluation.
+    """
+
+    project_root = (
+        Path(__file__).resolve().parents[1]
+    )
+
+    data_dir = (
+        project_root
+        / "data"
+        / "income"
+    )
+
+    X_train = np.load(
+        data_dir / "train_x.npy"
+    )
+
+    y_train = np.load(
+        data_dir / "train_y.npy"
+    )
+
+    X_val = np.load(
+        data_dir / "val_x.npy"
+    )
+
+    y_val = np.load(
+        data_dir / "val_y.npy"
+    )
+
+    X_test = np.load(
+        data_dir / "test_x.npy"
+    )
+
+    y_test = np.load(
+        data_dir / "test_y.npy"
+    )
+
+    return (
+        X_train,
+        X_val,
+        y_train,
+        y_val,
+        X_test,
+        y_test,
+    )

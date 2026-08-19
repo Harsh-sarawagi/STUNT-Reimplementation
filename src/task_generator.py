@@ -111,6 +111,8 @@ class STUNTTaskGenerator:
 
         self.max_attempts = max_attempts
 
+        self.random_state = random_state
+
         self.rng = np.random.default_rng(
             random_state
         )
@@ -222,13 +224,9 @@ class STUNTTaskGenerator:
 
         kmeans = KMeans(
             n_clusters=self.n_way,
-            n_init=10,
-            random_state=int(
-                self.rng.integers(
-                    0,
-                    2**31 - 1
-                )
-            ),
+            n_init=1,
+            max_iter=20,
+            random_state=self.random_state,
         )
 
         labels = kmeans.fit_predict(
@@ -358,12 +356,11 @@ class STUNTTaskGenerator:
     # Main function
     # ---------------------------------------------------------
 
-    def generate(
-        self,
-        X: np.ndarray
-    ) -> STUNTTask:
-
-        X = self._validate_x(X)
+    def generate(self, X):
+    # Validate only once because X is reused for every episode.
+        # if not hasattr(self, "_validated"):
+        #     X = self._validate_x(X)
+        #     self._validated = True
 
         n_rows, n_features = X.shape
 

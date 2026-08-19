@@ -14,6 +14,9 @@ import torch
 from src.protonet import ProtoNet
 from src.task_generator import STUNTTaskGenerator
 from src.validation import real_validate
+from src.validation import pseudo_validate
+
+
 
 
 # =========================================================
@@ -142,6 +145,17 @@ def train(
     # -----------------------------------------------------
     # STUNT task generator
     # -----------------------------------------------------
+
+    # Validate the full dataset once.
+    X = np.asarray(
+        X,
+        dtype=np.float32
+    )
+
+    if not np.isfinite(X).all():
+        raise ValueError(
+            "Training data contains NaN or infinite values."
+        )
 
     task_generator = STUNTTaskGenerator(
 
@@ -333,10 +347,21 @@ def train(
             == 0
         ):
 
-            val_accuracy = real_validate(
+            validation = real_validate(
                 model=model,
                 X_val=X_val,
                 y_val=y_val,
+                n_way=config.n_way,
+                k_shot=config.k_shot,
+                q_query=30,
+                n_episodes=20,
+                device=config.device,
+                random_state=config.seed + episode,
+            )
+
+            val_accuracy = pseudo_validate(
+                model=model,
+                X_val=X_val,
                 n_way=config.n_way,
                 k_shot=config.k_shot,
                 q_query=config.q_query,

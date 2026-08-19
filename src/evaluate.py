@@ -143,3 +143,69 @@ def evaluate_embeddings(
     }
 
     return results
+
+def evaluate_raw(
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+):
+    """
+    Evaluate raw tabular features using the same
+    downstream classifier as the embedding evaluation.
+
+    No STUNT encoder is used.
+    """
+
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import (
+        accuracy_score,
+        precision_score,
+        recall_score,
+        f1_score,
+        confusion_matrix,
+    )
+
+    classifier = LogisticRegression(
+        max_iter=2000,
+        random_state=42,
+    )
+
+    classifier.fit(
+        X_train,
+        y_train,
+    )
+
+    predictions = classifier.predict(
+        X_test
+    )
+
+    return {
+        "accuracy": accuracy_score(
+            y_test,
+            predictions,
+        ),
+
+        "precision": precision_score(
+            y_test,
+            predictions,
+            zero_division=0,
+        ),
+
+        "recall": recall_score(
+            y_test,
+            predictions,
+            zero_division=0,
+        ),
+
+        "f1": f1_score(
+            y_test,
+            predictions,
+            zero_division=0,
+        ),
+
+        "confusion_matrix": confusion_matrix(
+            y_test,
+            predictions,
+        ),
+    }
